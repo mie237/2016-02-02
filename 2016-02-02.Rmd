@@ -1,0 +1,164 @@
+---
+title: 'MIE237'
+author: "Neil Montgomery"
+date: "2016-02-02"
+output: 
+  ioslides_presentation: 
+    css: 'styles.css' 
+    widescreen: true 
+    transition: 0.001
+---
+\newcommand{\Var}[1]{\text{Var}\left( #1 \right)}
+\newcommand{\E}[1]{E\left( #1 \right)}
+\newcommand{\Sample}[1]{#1_1,\ldots,#1_n}
+\newcommand{\od}[2]{\overline #1_{#2\cdot}}
+\newcommand{\flist}[2]{\{#1_1, #1_2, \ldots, #1_#2\}}
+\newcommand{\samp}[2]{#1_1, #1_2, \ldots, #1_#2}
+\renewcommand{\bar}[1]{\overline{#1}}
+\newcommand{\ve}{\varepsilon}
+\newcommand{\bs}[1]{\boldsymbol{#1}}
+
+
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo=FALSE)
+```
+
+# regression
+
+## More on $\hat\beta_1$
+
+Estimation based on the model $y_i = \beta_0 + \beta_1 x_i + \varepsilon_i$.
+
+Other model assumptions: $\varepsilon_i$ are i.i.d. $N(0, \sigma^2)$. So the $y_i$ are also normal, with mean $\beta_0 + \beta_1x_i$ and variance $\sigma^2$.
+
+Important to remember that $\hat\beta_1$ is a *random variable* with a distribution, mean, and variance of its own. ($\beta_0$ too.)
+
+In fact $\E{\hat\beta_1} = \beta_1$ and its variance is $\frac{\sigma^2}{S_{xx}}$.
+
+**Notation:** textbook uses $b_1$ where I use $\hat\beta_1$ etc.
+
+## Distribution of $\hat\beta_1$ { .build }
+
+$$\hat\beta_1 = \frac{\sum_{i=1}^n(y_i-\overline y)
+(x_i-\overline{x})}{S_{xx}}$$
+
+(Sometimes I'll use $y_i$ as a random variable rather than data.)
+
+So: $\displaystyle
+\frac{\hat\beta_1 - \beta_1}{\sigma/\sqrt{S_{xx}}} \sim N(0,1)$
+
+Goals: make CI for $\beta_1$ and test $H_0: \beta_1=0$ versus the alternative.
+
+But we don't know $\sigma$. 
+
+## Some simulated data
+
+```{r, echo=FALSE, message=FALSE}
+library(dplyr)
+library(ggplot2)
+
+x <- 1:20/10
+sigma <- 3
+set.seed(1)
+y <- 5 + 2*x + rnorm(length(x), 0, sigma)
+
+regr_data <- data.frame(x=x, y=y)
+
+regr_lm <- lm(y ~ x, regr_data)
+
+regr_data$fitted <- regr_lm$fitted.values
+regr_data %>% 
+  ggplot(aes(x=x, y=y)) + geom_point()
+```
+
+
+## estimating $\sigma$ { .build }
+
+We begin by considering the variation in the outputs $\Sample{y}$ when we don't try to use the $x_i$ in any model at all:
+
+$$\sum_{i=1}^n \left(y_i - \bar{y}\right)^2$$
+
+This is the just the numerator of the sample variance of the $\Sample{y}$ and is what we'd use for the basic $y_i = \mu + \ve$ model.
+
+We'll call this the *Total Sum of Squares* or SST. We will decompose this into two parts: a *model* (or *regression*) part and a pure *error* (or *residual*) part.
+
+## TSS on the data
+
+```{r}
+regr_data %>% 
+  ggplot(aes(x=x, y=y)) + geom_point() + geom_hline(yintercept = mean(y), color="purple")
+```
+
+
+
+## Fitted values and residuals
+
+To do the decomposition we need to define a few things.
+
+The *fitted values* are the points on the fitted regression line evaluated at the $x_i$ in the data. Notation:
+$$ \hat y_i = \hat\beta_0 + \hat\beta_1 x_i $$
+
+The *residuals* are the differences between the fitted values and the observed responses $y_i$:
+$$\hat\ve_i = y_i - \hat y_i$$
+
+## Fitted values and residuals on the data
+
+```{r}
+regr_data %>% 
+  ggplot(aes(x=x, y=y)) + geom_point() + 
+  stat_smooth(method="lm", se = FALSE) +
+  geom_point(data=regr_data, aes(x=x, y=fitted), color="red") +
+  geom_hline(yintercept = mean(y), color="purple")
+```
+
+
+## The sum of squares decomposition
+
+$$\begin{align}
+SST &=\sum_{i=1}^n\left(y_i - \overline y\right)^2
+=\sum_{i=1}^n\left(y_i - \hat y_i + \hat y_i - \overline y\right)^2\\
+&=
+\sum_{i=1}^n\left(y_i - \hat y_i\right)^2 + 
+\sum_{i=1}^n\left(\hat y_i - \overline y\right)^2 + 2\text{(cross product)}\\
+&= \sum_{i=1}^n\left(\hat y_i - \overline y\right)^2 +
+\sum_{i=1}^n\left(y_i - \hat y_i\right)^2
+\end{align}$$
+
+We call the term on the left the *regression sum of squares* or $SSR$ and the last term the *error sum of squares* (or *residual sum of squares*) or $SSE$ and we get:
+$$SST = SSR + SSE$$
+
+## Distributions of the sums of squares { .build }
+
+$$\sum_{i=1}^n\left(y_i - \overline y\right)^2 = \sum_{i=1}^n\left(\hat y_i - \overline y\right)^2 +
+\sum_{i=1}^n\left(y_i - \hat y_i\right)^2$$
+
+They are all sums of squares of normal distributions.
+
+So they have $\chi^2$ distributions. 
+
+The degrees of freedom are $n-1$, $1$, and $n-2$, respectively. (They add up!)
+
+And we have our estimator for $\sigma^2$:
+$$\frac{SSE}{n-2}$$
+which we also call the mean squared error or $MSE$.
+
+## Inference for the slope parameter
+
+Main hypothesis test: $H_0:\beta_1=0$ versus $H_1:\beta_1\ne 0$. We might want to make a CI as well.
+
+Key fact:
+$$T=\frac{\hat\beta_1 - \beta_1}{\sqrt{MSE}/\sqrt{S_{xx}}}\sim t_{n-2}$$
+
+## In R - the SS decomposition
+
+```{r, echo=TRUE}
+anova(regr_lm)
+```
+
+## In R - summary results
+
+```{r}
+summary(regr_lm)
+```
+
